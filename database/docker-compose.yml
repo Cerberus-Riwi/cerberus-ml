@@ -4,17 +4,18 @@ services:
 
     image: postgres:17
 
+    env_file:
+      - ../.env
+
     container_name: cerberus-db
 
     restart: unless-stopped
 
     environment:
 
-      POSTGRES_USER: cerberus
-
-      POSTGRES_PASSWORD: cerberus123
-
-      POSTGRES_DB: cerberus
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
 
     ports:
 
