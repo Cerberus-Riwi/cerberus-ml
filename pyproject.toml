@@ -5,8 +5,10 @@ description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
     "faker>=40.23.0",
+    "fastapi>=0.138.1",
     "pandas>=3.0.3",
     "pika>=1.4.1",
     "psycopg[binary]>=3.3.4",
     "python-dotenv>=1.2.2",
+    "uvicorn>=0.49.0",
 ]

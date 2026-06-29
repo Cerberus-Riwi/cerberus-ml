@@ -31,4 +31,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
 
 # El entrypoint corre el consumer
-CMD ["python", "-m", "consumer.rabbit_consumer"]
+CMD ["uv", "run", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
