@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel
 
 
@@ -26,20 +28,7 @@ class RepositorySummary(BaseModel):
     medium: int
     low: int
     info: int
-    
-class Dashboard(BaseModel):
 
-    verdicts: list[VerdictSummary]
-
-    severity: list[SeveritySummary]
-
-    top_rules: list[TopRule]
-
-    repositories: list[RepositorySummary]
-    
-    history: list[HistorySummary]
-    
-from datetime import date
 
 class HistorySummary(BaseModel):
 
@@ -52,3 +41,16 @@ class HistorySummary(BaseModel):
     medium: int
     low: int
     info: int
+
+
+class Dashboard(BaseModel):
+
+    verdicts: list[VerdictSummary]
+
+    severity: list[SeveritySummary]
+
+    top_rules: list[TopRule]
+
+    repositories: list[RepositorySummary]
+    
+    history: list[HistorySummary]
