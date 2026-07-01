@@ -1,0 +1,138 @@
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+    # Credenciales que usa etl/database.py (via os.getenv) para conectarse
+    # al mismo Postgres de negocio que usa tu API/consumer.
+    PGHOST: postgres
+    PGPORT: 5432
+    PGDATABASE: ${PGDATABASE}
+    PGUSER: ${PGUSER}
+    PGPASSWORD: ${PGPASSWORD}
+    PYTHONPATH: /opt/airflow/project
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./etl:/opt/airflow/project/etl
+    - airflow_logs:/opt/airflow/logs
+  networks:
+    - cerberus-net
+  depends_on:
+    airflow-postgres:
+      condition: service_healthy
+
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: cerberus-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER} -d ${PGDATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cerberus-net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cerberus-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PGHOST: postgres
+      AIRFLOW_BASE_URL: http://airflow-webserver:8080
+      AIRFLOW_ETL_DAG_ID: cerberus_etl
+      AIRFLOW_API_USER: ${AIRFLOW_API_USER}
+      AIRFLOW_API_PASSWORD: ${AIRFLOW_API_PASSWORD}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cerberus-net
+
+  airflow-postgres:
+    image: postgres:17
+    container_name: airflow-metadata-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cerberus-net
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username "${AIRFLOW_API_USER}" \
+          --password "${AIRFLOW_API_PASSWORD}" \
+          --firstname Cerberus --lastname Admin \
+          --role Admin --email admin@example.com || true
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    restart: unless-stopped
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    restart: unless-stopped
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+networks:
+  cerberus-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  airflow_pg_data:
+  airflow_logs:

@@ -23,6 +23,7 @@ import time
 
 import pika
 import psycopg
+import requests
 from dotenv import load_dotenv
 
 from consumer.db_writer import insert_verdict
@@ -42,6 +43,17 @@ QUEUE    = "verdicts.ml"
 # ── Constantes de reconexión ──────────────────────────────────────────────────
 RECONNECT_DELAY_INITIAL = 2   # segundos
 RECONNECT_DELAY_MAX     = 60  # segundos
+
+# ── Constantes Airflow ────────────────────────────────────────────────────────
+# Apenas se confirma el insert en el OLTP, se dispara el DAG que sincroniza
+# el Data Mart OLAP (ver dags/cerberus_etl_dag.py). Es "best-effort": si
+# Airflow no responde, se registra el error pero NO se bloquea ni reintenta
+# el mensaje de RabbitMQ — el DAG también corre cada 30 min como respaldo.
+AIRFLOW_BASE_URL     = os.environ.get("AIRFLOW_BASE_URL", "http://airflow-webserver:8080")
+AIRFLOW_ETL_DAG_ID   = os.environ.get("AIRFLOW_ETL_DAG_ID", "cerberus_etl")
+AIRFLOW_API_USER     = os.environ.get("AIRFLOW_API_USER", "")
+AIRFLOW_API_PASSWORD = os.environ.get("AIRFLOW_API_PASSWORD", "")
+AIRFLOW_TRIGGER_TIMEOUT = 5  # segundos — no puede bloquear el consumer
 
 
 def get_rabbit_params() -> pika.ConnectionParameters:
@@ -66,6 +78,39 @@ def get_db_conn() -> psycopg.Connection:
         password=os.environ["PGPASSWORD"],
         autocommit=False,
     )
+
+
+def trigger_etl_dag(scan_id: str) -> None:
+    """
+    Dispara el DAG de Airflow (cerberus_etl) vía su REST API para que el
+    nuevo verdict recién insertado se propague al Data Mart OLAP.
+
+    No lanza excepciones hacia afuera: un fallo aquí no debe tumbar el
+    consumer ni afectar el ACK del mensaje de RabbitMQ, que ya se hizo.
+    """
+    url = f"{AIRFLOW_BASE_URL}/api/v1/dags/{AIRFLOW_ETL_DAG_ID}/dagRuns"
+
+    try:
+        response = requests.post(
+            url,
+            json={"conf": {"triggered_by": "rabbit_consumer", "scan_id": scan_id}},
+            auth=(AIRFLOW_API_USER, AIRFLOW_API_PASSWORD),
+            timeout=AIRFLOW_TRIGGER_TIMEOUT,
+        )
+        if response.ok:
+            logger.info("DAG '%s' disparado por scan_id=%s", AIRFLOW_ETL_DAG_ID, scan_id)
+        else:
+            logger.warning(
+                "No se pudo disparar el DAG '%s' (status=%s, body=%s). "
+                "El scheduled run cada 30 min lo cubrirá.",
+                AIRFLOW_ETL_DAG_ID, response.status_code, response.text[:300],
+            )
+    except requests.RequestException as e:
+        logger.warning(
+            "Error de red disparando el DAG '%s': %s. El scheduled run cada "
+            "30 min lo cubrirá.",
+            AIRFLOW_ETL_DAG_ID, e,
+        )
 
 
 def on_verdict(channel, method, properties, body):
@@ -97,6 +142,8 @@ def on_verdict(channel, method, properties, body):
         insert_verdict(verdict, db_conn)
         channel.basic_ack(delivery_tag=method.delivery_tag)
         logger.info("ACK — scan_id=%s", verdict.get("scanId", "?"))
+
+        trigger_etl_dag(verdict.get("scanId", "?"))
 
     except Exception as e:
         logger.error(

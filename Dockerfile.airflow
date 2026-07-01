@@ -1,0 +1,14 @@
+# Imagen de Airflow con las dependencias que necesita tu etl/ para conectarse
+# a Postgres (psycopg) y leer variables de entorno (python-dotenv).
+#
+# NOTA: elegimos Airflow 2.10.x (no 3.x) a propósito. Airflow 3 cambió el
+# esquema de autenticación de la REST API (JWT en vez de basic auth) y
+# reorganizó varios componentes; 2.10 es más simple de operar para un
+# despliegue pequeño self-hosted como este y usa la misma UI/API que ya
+# conoces. Si más adelante migras a Airflow 3, solo cambia esta imagen base
+# y el flujo de auth en consumer/rabbit_consumer.py.
+
+FROM apache/airflow:2.10.5-python3.12
+
+COPY requirements-airflow.txt /requirements-airflow.txt
+RUN pip install --no-cache-dir -r /requirements-airflow.txt
