@@ -49,27 +49,44 @@ services:
     networks:
       - cerberus-net
 
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: cerberus-api
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      PGHOST: postgres
-      AIRFLOW_BASE_URL: http://airflow-webserver:8080
-      AIRFLOW_ETL_DAG_ID: cerberus_etl
-      AIRFLOW_API_USER: ${AIRFLOW_API_USER}
-      AIRFLOW_API_PASSWORD: ${AIRFLOW_API_PASSWORD}
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - cerberus-net
+  # NOTA: el servicio "api" (FastAPI + consumer de RabbitMQ, ver Dockerfile
+  # y api/main.py) NO se levanta aquí a propósito. Esa misma imagen ya está
+  # desplegada en el cluster K3s como el Deployment "analytics"
+  # (k8s/services/analytics/deployment.yaml) — es el mismo código, sirviendo
+  # al frontend y consumiendo RabbitMQ desde ahí.
+  #
+  # Levantarla también en esta EC2 duplicaría el consumer de la cola
+  # verdicts.ml (RabbitMQ repartiría mensajes entre las dos instancias de
+  # forma impredecible) y crearía una segunda API compitiendo con la del
+  # cluster. Este docker-compose.yml solo corre lo que es exclusivo de la
+  # EC2: el Postgres de negocio (destino de los inserts del pod "analytics")
+  # y el stack de Airflow que orquesta el ETL.
+  #
+  # Si en algún momento se requiere el servicio "api" aquí también, primero
+  # hay que decidir con el equipo cuál instancia es la fuente de verdad para
+  # el consumer, para no correr dos a la vez.
+
+  #api:
+    #build:
+      #context: .
+      #dockerfile: Dockerfile
+    #container_name: cerberus-api
+    #restart: unless-stopped
+    #env_file:
+      #- .env
+    #environment:
+      #PGHOST: postgres
+      #AIRFLOW_BASE_URL: http://airflow-webserver:8080
+      #AIRFLOW_ETL_DAG_ID: cerberus_etl
+      #AIRFLOW_API_USER: ${AIRFLOW_API_USER}
+      #AIRFLOW_API_PASSWORD: ${AIRFLOW_API_PASSWORD}
+    #ports:
+      #- "8000:8000"
+    #depends_on:
+      #postgres:
+        #condition: service_healthy
+    #networks:
+      #- cerberus-net
 
   airflow-postgres:
     image: postgres:17
