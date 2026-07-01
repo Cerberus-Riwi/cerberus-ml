@@ -1,10 +1,3 @@
--- =============================================================================
--- CERBERUS ANALYTICS
--- Migration: 002_create_dim_date.sql
--- Description:
---   Crea la dimensión de fechas utilizada por el Data Mart.
--- =============================================================================
-
 CREATE TABLE IF NOT EXISTS analytics.dim_date (
     date_key        INTEGER PRIMARY KEY,
     full_date       DATE NOT NULL UNIQUE,

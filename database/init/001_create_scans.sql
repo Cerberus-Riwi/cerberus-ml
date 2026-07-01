@@ -1,12 +1,3 @@
--- =====================================================================
--- Migración 001 — Tabla scan_requests
--- Origen del contrato: scan-request.schema.json (v1.0.0)
--- Una fila = una solicitud de escaneo emitida por SecurityGate
---
--- Orden de ejecución: 001 -> 002 -> 003 -> 004 -> (005 analytics, futuro)
--- Esta es la primera migración, no depende de ninguna otra.
--- =====================================================================
-
 CREATE SCHEMA IF NOT EXISTS cerberus;
 
 CREATE TABLE IF NOT EXISTS cerberus.scan_requests (

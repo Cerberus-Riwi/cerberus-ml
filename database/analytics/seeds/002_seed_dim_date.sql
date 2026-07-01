@@ -1,10 +1,3 @@
--- =============================================================================
--- CERBERUS ANALYTICS
--- Seed: 002_seed_dim_date.sql
--- Description:
---   Genera automáticamente la dimensión de fechas.
--- =============================================================================
-
 INSERT INTO analytics.dim_date (
     date_key,
     full_date,

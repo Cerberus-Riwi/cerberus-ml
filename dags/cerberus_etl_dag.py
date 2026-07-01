@@ -1,22 +1,5 @@
-"""
-cerberus_etl_dag.py — Orquesta el ETL de cerberus-ml (OLTP -> Data Mart OLAP).
-
-No reimplementa la lógica del ETL: simplemente llama a etl.run.main(),
-el mismo código que hoy se corre a mano con `python -m etl.run`.
-
-Este DAG se dispara de DOS formas (no son excluyentes):
-
-1. EVENTO (principal): consumer/rabbit_consumer.py llama a la API de Airflow
-   justo después de insertar un nuevo verdict en el OLTP, disparando este DAG
-   de inmediato (ver AIRFLOW_ETL_DAG_ID en consumer/rabbit_consumer.py).
-
-2. SCHEDULE (red de seguridad): corre cada 30 minutos igual, por si la
-   llamada del consumer falla (Airflow caído, red, etc.) — así el Data Mart
-   nunca queda desincronizado por mucho tiempo aunque falle el disparo.
-"""
 
 from datetime import datetime, timedelta
-
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 

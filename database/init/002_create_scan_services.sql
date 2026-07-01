@@ -1,13 +1,3 @@
--- =====================================================================
--- Migración 002 — Tabla scan_results (a.k.a. "scan_services" en el backlog)
--- Origen del contrato: scan-result.schema.json (v1.0.0)
--- Una fila = el resultado de UN servicio analizador para UN escaneo.
--- Puede haber 1 o 2 filas por scan_id (vulnerability-service / codequality-service)
---
--- Orden de ejecución: 001 -> 002 -> 003 -> 004 -> (005 analytics, futuro)
--- Requiere que 001_create_scans.sql se haya ejecutado primero (FK a scan_requests)
--- =====================================================================
-
 CREATE TABLE IF NOT EXISTS cerberus.scan_results (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     scan_id         UUID NOT NULL REFERENCES cerberus.scan_requests(scan_id),

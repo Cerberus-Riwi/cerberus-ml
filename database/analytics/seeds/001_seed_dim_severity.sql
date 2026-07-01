@@ -1,10 +1,3 @@
--- =============================================================================
--- CERBERUS ANALYTICS
--- Seed: 001_seed_dim_severity.sql
--- Description:
---   Carga los valores estáticos de la dimensión de severidad.
--- =============================================================================
-
 INSERT INTO analytics.dim_severity (
     severity_name,
     priority,

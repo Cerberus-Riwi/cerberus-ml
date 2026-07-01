@@ -1,21 +1,3 @@
-"""
-rabbit_consumer.py — Consumer de RabbitMQ para cerberus-ml.
-
-Escucha el exchange cerberus.scan.verdicts (fanout, durable) en la queue
-verdicts.ml y persiste cada QualityGateResult en las 4 tablas de cerberus.
-
-Variables de entorno requeridas (leer desde .env):
-    RABBITMQ_USER
-    RABBITMQ_PASSWORD
-    RABBITMQ_HOST     (default: rabbitmq.cerberus.svc.cluster.local)
-    RABBITMQ_PORT     (default: 5672)
-    PGHOST
-    PGPORT
-    PGDATABASE
-    PGUSER
-    PGPASSWORD
-"""
-
 import json
 import logging
 import os

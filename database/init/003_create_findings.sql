@@ -1,18 +1,3 @@
--- =====================================================================
--- Migración 003 — Tabla findings
--- Origen del contrato: scan-result.schema.json -> findings[] (v1.1.0)
--- Una fila = un hallazgo individual dentro de un scan_result
---
--- Orden de ejecución: 001 -> 002 -> 003 -> 004 -> (005 analytics, futuro)
--- Requiere que 002_create_scan_services.sql se haya ejecutado primero
--- (findings.scan_result_id referencia scan_results.id)
---
--- NOTA DE VERSIÓN: file_path es nullable desde el contrato v1.1.0
--- (aprobado por Ximena Jaramillo) para soportar findings de origen DAST
--- (OWASP ZAP), que no se asocian a un archivo sino a una location_url.
--- Ver database/SCHEMA_CHANGELOG.md para el detalle de este cambio.
--- =====================================================================
-
 CREATE TABLE IF NOT EXISTS cerberus.findings (
     id              UUID PRIMARY KEY,  -- viene del contrato, generado por el servicio analizador
     scan_result_id  UUID NOT NULL REFERENCES cerberus.scan_results(id) ON DELETE CASCADE,

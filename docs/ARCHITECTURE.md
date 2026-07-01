@@ -103,6 +103,23 @@ requests at the same time. The `docker-compose.yml` at the root only runs
 what is exclusive to EC2: the business PostgreSQL database and the Airflow
 stack.
 
+## Internal authentication and audit trail
+
+Besides the event-driven pipeline above, the OLTP database also stores
+internal users, their favorite repositories, and an audit trail
+(`cerberus.users`, `cerberus.user_repositories`, `cerberus.audit_log` — see
+[database/README.md](../database/README.md)). This is unrelated to the
+`scan-*.schema.json` contracts and does not come from RabbitMQ; it exists to
+support login and an admin panel for the platform's frontend.
+
+> **Status:** as of this writing, only the database schema exists
+> (`database/init/005_create_users_and_audit.sql`). The FastAPI service
+> (`api/`) does not yet expose auth endpoints (login, token issuance) or
+> read/write these tables — see [docs/API.md](API.md) for the current,
+> auth-free endpoint list. `scan_requests.user_id` is also not populated yet
+> by the consumer (`consumer/db_writer.py`). This section should be expanded
+> once that application logic is built.
+
 ## Related documents
 
 - [docs/ETL.md](ETL.md) — details about each ETL step.

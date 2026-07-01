@@ -1,19 +1,7 @@
--- =====================================================================
--- CERBERUS - Diseño inicial de base de datos OLTP
--- Basado en los contratos: scan-request, scan-result, scan-verdict (v1)
--- Motor: PostgreSQL
--- Autor: Miguel Ángel Rodríguez Cano (Data Analyst)
--- =====================================================================
 
--- Se recomienda crear un schema dedicado en vez de usar "public"
 CREATE SCHEMA IF NOT EXISTS cerberus;
 SET search_path TO cerberus;
 
--- =====================================================================
--- TABLA: scan_requests
--- Origen del contrato: scan-request.schema.json
--- Una fila = una solicitud de escaneo emitida por SecurityGate
--- =====================================================================
 CREATE TABLE scan_requests (
     scan_id         UUID PRIMARY KEY,
     repository_url  TEXT NOT NULL
@@ -34,12 +22,6 @@ CREATE TABLE scan_requests (
 COMMENT ON TABLE scan_requests IS
     'Solicitudes de escaneo publicadas por SecurityGate. Inicia el flujo completo.';
 
--- =====================================================================
--- TABLA: scan_results
--- Origen del contrato: scan-result.schema.json
--- Una fila = el resultado de UN servicio analizador para UN escaneo.
--- Puede haber 1 o 2 filas por scan_id (vulnerability-service / codequality-service)
--- =====================================================================
 CREATE TABLE scan_results (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     scan_id         UUID NOT NULL REFERENCES scan_requests(scan_id),
@@ -67,11 +49,7 @@ CREATE TABLE scan_results (
 COMMENT ON TABLE scan_results IS
     'Resultado de un análisis por servicio (Vulnerability o CodeQuality) para un escaneo dado.';
 
--- =====================================================================
--- TABLA: findings
--- Origen del contrato: scan-result.schema.json -> findings[]
--- Una fila = un hallazgo individual dentro de un scan_result
--- =====================================================================
+
 CREATE TABLE findings (
     id              UUID PRIMARY KEY,  -- viene del contrato, generado por el servicio analizador
     scan_result_id  UUID NOT NULL REFERENCES scan_results(id) ON DELETE CASCADE,
@@ -94,14 +72,7 @@ CREATE TABLE findings (
 COMMENT ON TABLE findings IS
     'Hallazgos individuales de seguridad/calidad detectados por los servicios analizadores.';
 
--- =====================================================================
--- TABLA: scan_verdicts
--- Origen del contrato: scan-verdict.schema.json
--- Una fila = el veredicto final consolidado de un escaneo.
--- NOTA: el campo "results" del contrato (que incluye los scan-result
--- completos) NO se duplica aquí; ya existen en scan_results/findings.
--- Esta tabla solo guarda lo que es propio del veredicto.
--- =====================================================================
+
 CREATE TABLE scan_verdicts (
     scan_id             UUID PRIMARY KEY REFERENCES scan_requests(scan_id),
     verdict             VARCHAR(10) NOT NULL
@@ -138,11 +109,6 @@ CREATE TABLE scan_verdicts (
 COMMENT ON TABLE scan_verdicts IS
     'Veredicto final consolidado por SecurityGate. Determina pass/warning/fail y el rollback.';
 
--- =====================================================================
--- ÍNDICES
--- Pensados para los patrones de consulta más probables:
--- buscar por severidad, por archivo, por rango de fechas, por repo.
--- =====================================================================
 
 -- Findings: tus análisis (clustering, KPIs) van a filtrar mucho por severidad y regla
 CREATE INDEX idx_findings_severity ON findings(severity);
@@ -159,7 +125,3 @@ CREATE INDEX idx_scan_requests_requested_at ON scan_requests(requested_at);
 -- Scan verdicts: tendencias en el tiempo y por tipo de veredicto
 CREATE INDEX idx_scan_verdicts_verdict ON scan_verdicts(verdict);
 CREATE INDEX idx_scan_verdicts_issued_at ON scan_verdicts(issued_at);
-
--- =====================================================================
--- FIN DEL SCRIPT
--- =====================================================================

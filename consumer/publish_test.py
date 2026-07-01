@@ -1,18 +1,3 @@
-"""
-publish_test.py — Publica un QualityGateResult de prueba al exchange de RabbitMQ.
-
-Permite probar el consumer localmente sin necesitar que cerberus-qualitygate
-esté corriendo. El mensaje replica exactamente el contrato del C#.
-
-Uso:
-    python publish_test.py
-    python publish_test.py --verdict warning
-    python publish_test.py --verdict pass --no-findings
-
-Variables de entorno (desde .env):
-    RABBITMQ_USER, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT
-"""
-
 import argparse
 import json
 import os

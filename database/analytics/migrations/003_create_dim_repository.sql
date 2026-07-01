@@ -1,10 +1,3 @@
--- =============================================================================
--- CERBERUS ANALYTICS
--- Migration: 003_create_dim_repository.sql
--- Description:
---   Dimensión de repositorios analizados por Cerberus.
--- =============================================================================
-
 CREATE TABLE IF NOT EXISTS analytics.dim_repository (
     repository_key     BIGSERIAL PRIMARY KEY,
 

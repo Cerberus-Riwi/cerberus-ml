@@ -1,10 +1,3 @@
--- =============================================================================
--- CERBERUS ANALYTICS
--- Migration: 005_create_dim_severity.sql
--- Description:
---   Dimensión de severidades utilizada para el análisis de findings.
--- =============================================================================
-
 CREATE TABLE IF NOT EXISTS analytics.dim_severity (
     severity_key    SMALLSERIAL PRIMARY KEY,
 

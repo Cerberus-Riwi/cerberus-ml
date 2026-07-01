@@ -1,16 +1,3 @@
--- =====================================================================
--- Migración 004 — Tabla scan_verdicts
--- Origen del contrato: scan-verdict.schema.json (v1.0.0)
--- Una fila = el veredicto final consolidado de un escaneo.
---
--- Orden de ejecución: 001 -> 002 -> 003 -> 004 -> (005 analytics, futuro)
--- Requiere que 001_create_scans.sql se haya ejecutado primero (FK a scan_requests)
---
--- NOTA: el campo "results" del contrato (que incluye los scan-result
--- completos) NO se duplica aquí; ya existen en scan_results/findings.
--- Esta tabla solo guarda lo que es propio del veredicto.
--- =====================================================================
-
 CREATE TABLE IF NOT EXISTS cerberus.scan_verdicts (
     scan_id             UUID PRIMARY KEY REFERENCES cerberus.scan_requests(scan_id),
     verdict             VARCHAR(10) NOT NULL

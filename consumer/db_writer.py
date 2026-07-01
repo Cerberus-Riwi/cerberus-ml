@@ -1,15 +1,3 @@
-"""
-db_writer.py — Inserción de un QualityGateResult en las 4 tablas de cerberus.
-
-Recibe el dict deserializado del mensaje RabbitMQ y lo persiste en:
-    cerberus.scan_requests   (upsert — puede llegar más de una vez)
-    cerberus.scan_results    (upsert por scan_id + service_id)
-    cerberus.findings        (insert — gen_random_uuid() porque el mensaje no trae id)
-    cerberus.scan_verdicts   (upsert por scan_id)
-
-Reutilizable tanto desde el consumer como desde scripts de prueba.
-"""
-
 import uuid
 import logging
 

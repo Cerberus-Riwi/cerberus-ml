@@ -1,18 +1,3 @@
-"""
-Carga los CSVs de seed data (data/demo/) a PostgreSQL.
-Maneja correctamente los NULL (celdas vacías -> None real, no string vacío).
-
-Requiere un archivo .env en la raíz del proyecto con:
-    PGHOST=localhost
-    PGPORT=5432
-    PGDATABASE=cerberus
-    PGUSER=cerberus
-    PGPASSWORD=tu-contraseña
-
-Uso:
-    python data/demo/load_seed_data.py
-"""
-
 import csv
 import os
 

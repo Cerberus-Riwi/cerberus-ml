@@ -1,11 +1,3 @@
--- =============================================================================
--- CERBERUS ANALYTICS
--- Migration: 006_create_fact_findings.sql
--- Description:
---   Tabla de hechos del Data Mart.
---   Cada registro representa un finding detectado durante un escaneo.
--- =============================================================================
-
 CREATE TABLE IF NOT EXISTS analytics.fact_findings (
 
     -- Clave sustituta del Data Mart

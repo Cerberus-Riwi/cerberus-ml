@@ -1,17 +1,3 @@
--- =====================================================================
--- Migración 005 — Autenticación interna, repositorios favoritos y auditoría
--- Origen: no viene de un contrato externo (scan-*.schema.json); es
--- funcionalidad propia de Cerberus ML para soportar login de usuarios,
--- repositorios favoritos por usuario, y trazabilidad de acciones (admin).
---
--- Orden de ejecución: 001 -> 002 -> 003 -> 004 -> 005
--- Requiere que 001_create_scans.sql se haya ejecutado primero
--- (scan_requests.user_id referencia cerberus.users.id)
--- =====================================================================
-
--- ---------------------------------------------------------------------
--- Tabla users — autenticación interna
--- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cerberus.users (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email         VARCHAR(255) UNIQUE NOT NULL,

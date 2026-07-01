@@ -1,10 +1,3 @@
--- =============================================================================
--- CERBERUS ANALYTICS
--- Migration: 004_create_dim_rule.sql
--- Description:
---   Dimensión de reglas detectadas durante los escaneos.
--- =============================================================================
-
 CREATE TABLE IF NOT EXISTS analytics.dim_rule (
     rule_key            BIGSERIAL PRIMARY KEY,
 
