@@ -6,6 +6,58 @@ base de datos se desvía del contrato `scan-result.schema.json` v1.0.0 original.
 
 ---
 
+## [2026-07-01] Autenticación interna, repositorios favoritos y auditoría
+
+**Motivo:** Cerberus ML incorpora autenticación propia (login de usuarios) y
+un panel de administración. Se necesita persistir usuarios, sus repositorios
+favoritos, y un registro de auditoría de acciones administrativas.
+
+**Contrato de referencia:** ninguno — a diferencia del resto del schema OLTP,
+estas tablas no derivan de `scan-*.schema.json`; son funcionalidad propia de
+Cerberus ML no relacionada con los contratos de SecurityGate.
+
+### Cambios aplicados
+
+```sql
+-- Ver database/init/005_create_users_and_audit.sql para el detalle completo
+CREATE TABLE cerberus.users (...);
+CREATE TABLE cerberus.user_repositories (...);
+ALTER TABLE cerberus.scan_requests ADD COLUMN user_id UUID REFERENCES cerberus.users(id);
+CREATE TABLE cerberus.audit_log (...);
+```
+
+### Impacto en el modelo
+
+| Tabla | Cambio |
+|---|---|
+| `cerberus.users` | Nueva. Usuarios internos (`role`: `user` \| `admin`, `is_active`). |
+| `cerberus.user_repositories` | Nueva. Repositorios favoritos por usuario. |
+| `cerberus.scan_requests` | Se agrega `user_id` (nullable, `FK → users.id`). |
+| `cerberus.audit_log` | Nueva. Auditoría de acciones (`ON DELETE SET NULL` en `user_id`). |
+
+### Nota de seguimiento
+
+Este cambio se ejecutó primero directamente sobre la base de datos y luego
+se formalizó como migración versionada. Al formalizarlo se agregaron además
+(no estaban en la ejecución original):
+
+* `CHECK (role IN ('user','admin'))` en `users.role`.
+* `CHECK` de formato GitHub en `user_repositories.github_url`, igual al que
+  ya existía en `scan_requests.repository_url`.
+* Índices en las nuevas columnas/tablas con FK (`user_id` en `scan_requests`,
+  `user_repositories` y `audit_log`).
+* `ON DELETE SET NULL` explícito en `audit_log.user_id`.
+
+> **Pendiente de seguimiento:** actualizar `docs/ARCHITECTURE.md` para
+> reflejar que este servicio ahora también persiste autenticación, y
+> regenerar el diagrama ER (`database/diagrams/cerberus_er_oltp_diagram.png`).
+>
+> **Pendiente de seguimiento:** `consumer/db_writer.py` todavía no popula
+> `scan_requests.user_id` al insertar — ningún escaneo queda vinculado a un
+> usuario hasta que se actualice ese flujo.
+
+---
+
 ## [2026-06-XX] Soporte para findings de tipo DAST/ZAP sin filePath
 
 **Solicitado por:** Luis Miguel (VulnerabilityService)

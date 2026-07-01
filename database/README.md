@@ -41,6 +41,12 @@ scan_requests
       │ 1:1
       ▼
 scan_verdicts
+
+users
+  │
+  ├──── 1:N ────► user_repositories
+  ├──── 1:N ────► scan_requests   (user_id, opcional — quién disparó/es dueño del escaneo)
+  └──── 1:N ────► audit_log
 ```
 
 ---
@@ -71,7 +77,8 @@ Las migraciones deben ejecutarse en el siguiente orden:
 | 002            | 002_create_scan_services.sql | Resultados de cada servicio analizador                 |
 | 003            | 003_create_findings.sql      | Hallazgos individuales                                 |
 | 004            | 004_create_verdicts.sql      | Veredicto consolidado                                  |
-| 005 *(futuro)* | analytics                    | Persistencia del pipeline ML                           |
+| 005            | 005_create_users_and_audit.sql | Autenticación interna, repositorios favoritos y auditoría |
+| 006 *(futuro)* | analytics                    | Persistencia del pipeline ML                           |
 
 ---
 
@@ -268,6 +275,100 @@ Además:
 
 ---
 
+## 5. users
+
+Usuarios internos de Cerberus (autenticación propia, no delegada a un proveedor externo).
+
+### Clave primaria
+
+* `id`
+
+### Campos
+
+| Campo         | Tipo         | Descripción                                  |
+| ------------- | ------------ | --------------------------------------------- |
+| id            | UUID         | Identificador único del usuario                |
+| email         | VARCHAR(255) | Email, único, usado para login                 |
+| password_hash | VARCHAR(255) | Hash de la contraseña (nunca texto plano)      |
+| role          | VARCHAR(20)  | `user` o `admin`                               |
+| is_active     | BOOLEAN      | Si el usuario puede iniciar sesión             |
+| created_at    | TIMESTAMPTZ  | Fecha de creación                              |
+| last_login_at | TIMESTAMPTZ  | Último inicio de sesión (opcional)             |
+
+### Restricciones
+
+* `email` único.
+* `role` limitado a `user` / `admin`.
+
+### Índices
+
+* Implícito por `UNIQUE` en `email`.
+
+---
+
+## 6. user_repositories
+
+Repositorios de GitHub marcados como favoritos por cada usuario.
+
+### Clave primaria
+
+* `id`
+
+### Clave foránea
+
+* `user_id → users.id` (`ON DELETE CASCADE`)
+
+### Campos
+
+| Campo          | Tipo         | Descripción                          |
+| -------------- | ------------ | ------------------------------------- |
+| id             | UUID         | Identificador único                   |
+| user_id        | UUID         | Usuario dueño del favorito             |
+| github_url     | VARCHAR(512) | URL del repositorio GitHub             |
+| default_branch | VARCHAR(255) | Rama por defecto a analizar            |
+| created_at     | TIMESTAMPTZ  | Fecha en que se marcó como favorito    |
+
+### Restricciones
+
+* URL obligatoriamente perteneciente a GitHub.
+* Un usuario no puede repetir el mismo `github_url` (`UNIQUE(user_id, github_url)`).
+
+### Índices
+
+* idx_user_repositories_user_id
+
+---
+
+## 7. audit_log
+
+Registro de auditoría de acciones relevantes (creación de escaneos, login, administración de usuarios).
+
+### Clave primaria
+
+* `id`
+
+### Clave foránea
+
+* `user_id → users.id` (`ON DELETE SET NULL` — el log se conserva aunque se borre el usuario)
+
+### Campos
+
+| Campo      | Tipo         | Descripción                                          |
+| ---------- | ------------ | ----------------------------------------------------- |
+| id         | UUID         | Identificador único del evento                        |
+| user_id    | UUID         | Usuario que originó la acción (opcional)               |
+| action     | VARCHAR(100) | Tipo de acción, ej. `scan_created`, `login`, `user_suspended` |
+| payload    | JSONB        | Datos adicionales del evento                           |
+| created_at | TIMESTAMPTZ  | Fecha del evento                                        |
+
+### Índices
+
+* idx_audit_log_user_id
+* idx_audit_log_action
+* idx_audit_log_created_at
+
+---
+
 # Integridad referencial
 
 El modelo implementa integridad mediante claves foráneas.
@@ -281,6 +382,11 @@ scan_requests
     │                 findings
     │
     └──────────────► scan_verdicts
+
+users
+    ├──────────────► user_repositories
+    ├──────────────► scan_requests.user_id (opcional)
+    └──────────────► audit_log
 ```
 
 La tabla **findings** utiliza:
@@ -290,6 +396,12 @@ ON DELETE CASCADE
 ```
 
 para eliminar automáticamente los hallazgos cuando desaparece su resultado asociado.
+
+La tabla **user_repositories** también usa `ON DELETE CASCADE` (se borran los favoritos si se borra el usuario).
+
+La tabla **audit_log** usa `ON DELETE SET NULL` en `user_id` — el historial de auditoría se conserva aunque el usuario sea eliminado.
+
+`scan_requests.user_id` no define `ON DELETE` explícito (por lo tanto es `RESTRICT`): no se puede borrar un usuario que tiene escaneos asociados, para preservar trazabilidad.
 
 ---
 
@@ -343,6 +455,20 @@ Esto permite garantizar consistencia incluso si existen múltiples consumidores 
 * verdict
 * issued_at
 
+## users
+
+* email (implícito por UNIQUE)
+
+## user_repositories
+
+* user_id
+
+## audit_log
+
+* user_id
+* action
+* created_at
+
 ---
 
 # Compatibilidad con contratos
@@ -367,6 +493,10 @@ La siguiente fase del proyecto incorporará el componente de Analytics.
 
 Se añadirá una nueva migración para almacenar los resultados generados por el pipeline de Machine Learning (clustering y métricas), manteniendo separadas las responsabilidades del modelo OLTP y del procesamiento analítico.
 
+> **Pendiente de seguimiento:** el diagrama ER (`diagrams/cerberus_er_oltp_diagram.png`)
+> todavía no incluye `users`, `user_repositories` ni `audit_log`. Se recomienda
+> regenerarlo en una próxima iteración.
+
 ---
 
 # Estructura del directorio
@@ -382,7 +512,8 @@ database/
 │   ├── 001_create_scans.sql
 │   ├── 002_create_scan_services.sql
 │   ├── 003_create_findings.sql
-│   └── 004_create_verdicts.sql
+│   ├── 004_create_verdicts.sql
+│   └── 005_create_users_and_audit.sql
 └── legacy/
     └── cerberus_schema_oltp_v1.sql
 ```
