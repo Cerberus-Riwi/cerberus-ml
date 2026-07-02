@@ -31,3 +31,7 @@ class Settings:
     PGPASSWORD = os.getenv("PGPASSWORD")
     
     APP_PORT = int(os.getenv("APP_PORT", 8000))
+
+    AZURE_OPENAI_ENDPOINT   = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+    AZURE_OPENAI_API_KEY    = os.getenv("AZURE_OPENAI_API_KEY", "")
+    AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")

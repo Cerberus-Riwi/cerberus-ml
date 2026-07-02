@@ -3,12 +3,14 @@ import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from api.exceptions import generic_exception_handler
 from api.config import Settings
 from time import perf_counter
 from fastapi import Request
 from api.logger import logger
 from api.routers.kpis import router as kpi_router
+from api.routers.chat import router as chat_router
 from api.tags import tags_metadata
 
 from consumer.rabbit_consumer import main as run_consumer
@@ -67,7 +69,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:4173"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
 app.include_router(kpi_router)
+app.include_router(chat_router)
 
 
 @app.get("/")
