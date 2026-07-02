@@ -19,7 +19,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ── Constantes RabbitMQ ───────────────────────────────────────────────────────
-EXCHANGE = "cerberus.scan.verdicts"
+# IMPORTANTE: este nombre lo define QualityGate, no nosotros.
+# Ver cerberus-qualitygate/appsettings.json -> "RabbitMQResultsExchange".
+# Confirmado directamente en el código real (RabbitMQConsumerService.cs,
+# método PublishResult) el 2026-07-02: es "cerberus.gate.results".
+# NO es "cerberus.scan.verdicts" — ese nombre era una suposición temprana
+# del proyecto que nunca se actualizó en este consumer. Si QualityGate
+# vuelve a cambiar el nombre del exchange, hay que actualizarlo aquí.
+EXCHANGE = "cerberus.gate.results"
 QUEUE    = "verdicts.ml"
 
 # ── Constantes de reconexión ──────────────────────────────────────────────────
