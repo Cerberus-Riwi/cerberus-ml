@@ -5,10 +5,43 @@ import psycopg
 
 logger = logging.getLogger(__name__)
 
+# Namespace fijo para generar UUIDs determinísticos de findings.
+# NO cambiar este valor una vez en producción — cambiarlo generaría
+# IDs distintos para los mismos findings y rompería la deduplicación
+# de los que ya existen en la base.
+FINDING_NAMESPACE = uuid.UUID("f47ac10b-58cc-4372-a567-0e02b2c3d479")
+
 
 def empty_to_none(value):
     """Convierte string vacío a None (mismo patrón que load_data_demo.py)."""
     return None if value == "" or value is None else value
+
+
+def make_finding_id(scan_result_id: str, finding: dict) -> str:
+    """
+    Genera un UUID determinístico para un finding, a partir de los campos
+    que lo identifican de forma única dentro de un scan_result.
+
+    Por qué determinístico y no uuid4() aleatorio:
+    QualityGate reentrega el mismo mensaje más de una vez (redelivery de
+    RabbitMQ, reinicios del consumer, etc.), y el contrato no incluye un
+    id propio por finding. Con uuid4() cada intento generaba un id nuevo,
+    así que el ON CONFLICT (id) DO NOTHING nunca detectaba el duplicado
+    porque el id nunca coincidía con el de un intento anterior.
+
+    uuid5() con un namespace fijo genera SIEMPRE el mismo UUID para la
+    misma combinación de (scan_result_id, rule_id, file_path, line_start,
+    line_end) — así el ON CONFLICT sí puede reconocer un finding repetido
+    y descartarlo correctamente, sin duplicar filas.
+    """
+    key = "|".join([
+        str(scan_result_id),
+        finding.get("ruleId", ""),
+        finding.get("filePath") or "",
+        str(finding.get("lineStart") or ""),
+        str(finding.get("lineEnd") or ""),
+    ])
+    return str(uuid.uuid5(FINDING_NAMESPACE, key))
 
 
 def insert_verdict(verdict: dict, conn: psycopg.Connection) -> None:
@@ -52,7 +85,8 @@ def insert_verdict(verdict: dict, conn: psycopg.Connection) -> None:
     }
 
     Nota: DeploymentId tiene [JsonIgnore] en C# — no llega en el mensaje.
-    Nota: findings no traen id — se genera con uuid4() aquí.
+    Nota: findings no traen id — se genera determinísticamente con
+    make_finding_id() para que la deduplicación funcione ante reentregas.
     """
     scan_id = verdict["scanId"]
     summary = verdict.get("summary", {})
@@ -110,8 +144,11 @@ def insert_verdict(verdict: dict, conn: psycopg.Connection) -> None:
             )
             scan_result_id = cur.fetchone()[0]
 
-            # Findings — el mensaje no trae id, se genera aquí
+            # Findings — el mensaje no trae id, se genera de forma
+            # DETERMINÍSTICA (no aleatoria) para que las reentregas de
+            # RabbitMQ no generen filas duplicadas.
             for finding in result.get("findings", []):
+                finding_id = make_finding_id(scan_result_id, finding)
                 cur.execute(
                     """
                     INSERT INTO cerberus.findings
@@ -123,7 +160,7 @@ def insert_verdict(verdict: dict, conn: psycopg.Connection) -> None:
                     ON CONFLICT (id) DO NOTHING
                     """,
                     {
-                        "id":             str(uuid.uuid4()),
+                        "id":             finding_id,
                         "scan_result_id": scan_result_id,
                         "severity":       finding["severity"],
                         "title":          finding["title"],
